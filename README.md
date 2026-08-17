@@ -89,7 +89,8 @@ https://…/#v=1&m=e2e4,e7e5,g1f3&do=w
             └─ format version
 ```
 
-`rb=` marks a resignation, `da=1` an agreed draw. The full move list (not a
+`rb=` marks a resignation; `da=` an agreed draw, its value naming the
+accepting side (legacy `da=1` still decodes). The full move list (not a
 snapshot) is what makes every link self-verifying: the app replays it through
 the rules engine and refuses illegal or tampered histories. State lives in the
 `#fragment`, which browsers never send to any server — the static host sees

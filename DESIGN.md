@@ -110,7 +110,7 @@ payload   = "v=" version *( "&" field )
 field     = "m=" move *( "," move )      ; full UCI move list from the start position
           / "do=" color                  ; draw offered by (rides with the offerer's move)
           / "rb=" color                  ; resigned by
-          / "da=1"                       ; draw agreed
+          / "da=" ( color / "1" )        ; draw agreed, by whom ("1" = legacy, accepter unknown)
 color     = "w" / "b"
 move      = <UCI: from square, to square, optional promotion piece>  ; e2e4, e7e8q
 ```
@@ -122,7 +122,7 @@ Examples:
 #v=1&m=e2e4                       after 1. e4
 #v=1&m=e2e4,e7e5,g1f3&do=w        White played 2. Nf3 and offers a draw
 #v=1&m=…&rb=b                     Black resigns
-#v=1&m=…&da=1                     draw agreed
+#v=1&m=…&da=w                     draw agreed (White accepted)
 ```
 
 Design properties, all inherited from v1's codec:

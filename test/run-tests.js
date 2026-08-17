@@ -286,7 +286,13 @@ section("MatchState codec");
     "resignation verdict");
   var agreed = MatchState.decode("v=1&m=e2e4&da=1");
   assertEqual(agreed.verdict(agreed.makeGame()), { winner: null, reason: "agreement" },
-    "agreed-draw verdict");
+    "legacy da=1 agreed-draw verdict");
+  assertEqual(agreed.drawAgreedBy, null, "legacy da=1 leaves the accepter unknown");
+  var agreedBy = MatchState.decode("v=1&m=e2e4&da=b");
+  assertEqual(agreedBy.drawAgreed, true, "colored da decodes as agreed");
+  assertEqual(agreedBy.drawAgreedBy, "b", "colored da names the accepter");
+  assertEqual(agreedBy.encode(), "v=1&m=e2e4&da=b", "colored da round-trips");
+  assertEqual(MatchState.decode("v=1&da=x"), null, "bad da value rejected");
   var mate = MatchState.decode("v=1&m=f2f3,e7e5,g2g4,d8h4");
   assertEqual(mate.verdict(mate.makeGame()), { winner: "b", reason: "checkmate" },
     "checkmate verdict");

@@ -73,8 +73,10 @@
     background: var(--card);
     color: var(--ink);
     border-radius: 10px;
-    font-size: 15px;
-    padding: 6px 10px;
+    font-size: 16px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
   }
   .card {
     background: var(--card);
@@ -185,10 +187,9 @@
   }
   .sq .coord {
     position: absolute;
-    font-size: 10px;
+    font-size: 11.5px;
     font-weight: 700;
     font-family: -apple-system, sans-serif;
-    opacity: 0.75;
     pointer-events: none;
     z-index: 1;
   }
@@ -227,8 +228,60 @@
     border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
   }
 
+  /* Material bar + history stepper */
+  .board-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: min(100%, 440px);
+    margin: 6px auto 0;
+    font-size: 14px;
+    color: var(--ink-soft);
+    min-height: 22px;
+  }
+  .board-strip .mat-glyphs { font-size: 17px; letter-spacing: 1px; color: var(--ink); }
+  .board-strip .mat-score { font-weight: 700; color: var(--accent); }
+  .stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: min(100%, 440px);
+    margin: 8px auto 0;
+  }
+  .stepper button {
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 10px;
+    font-size: 17px;
+    line-height: 1;
+    min-width: 52px;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .stepper button:disabled { opacity: 0.35; }
+  .stepper .step-label {
+    flex: 1;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
   details { margin-top: 10px; }
-  summary { cursor: pointer; color: var(--ink-soft); font-size: 14px; }
+  summary {
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  summary::before { content: "▸ "; margin-right: 4px; transition: none; }
+  details[open] summary::before { content: "▾ "; }
+  summary::-webkit-details-marker, summary::marker { display: none; content: ""; }
   .moves-text { font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; overflow-wrap: anywhere; }
   .fen { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
 
@@ -253,7 +306,7 @@
     box-shadow: var(--shadow);
   }
   .picker .choices { display: flex; gap: 10px; margin-top: 10px; }
-  .picker button {
+  .picker .choices button {
     font-size: 42px;
     line-height: 1;
     padding: 10px 12px;
@@ -263,8 +316,8 @@
     cursor: pointer;
     font-family: "Apple Symbols", -apple-system, "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif;
   }
-  .picker button .glyph.w { color: #fff; text-shadow: 0 1px 1.5px rgba(0,0,0,.65), 0 0 1px rgba(0,0,0,.9); }
-  .picker button .glyph.b { color: #151210; }
+  .picker .choices button .glyph.w { color: #fff; text-shadow: 0 1px 1.5px rgba(0,0,0,.65), 0 0 1px rgba(0,0,0,.9); }
+  .picker .choices button .glyph.b { color: #151210; }
 
   footer { text-align: center; margin-top: 18px; }
   footer a { color: var(--ink-soft); font-size: 12.5px; }
@@ -286,6 +339,7 @@
         board, moves, and sends the link back. No app to install, no account, no server holding
         your game — the whole match travels inside the link.</p>
       <button class="primary" id="newGameBtn">Start a game — you play White</button>
+      <button class="secondary" id="inviteBtn">…or send an invite — they play White</button>
     </div>
     <div class="card">
       <h2>How it works</h2>
@@ -314,6 +368,7 @@
     <div class="card" id="statusCard">
       <p class="status-line" id="statusLine" role="status"></p>
       <p class="status-detail" id="statusDetail"></p>
+      <button class="secondary hidden" id="takeOverBtn">I'm playing this side on this phone</button>
       <div class="banner hidden" id="drawBanner">
         <span id="drawBannerText"></span>
         <div class="row">
@@ -326,16 +381,26 @@
     <div class="board-wrap">
       <div class="board" id="board" aria-label="Chess board"></div>
     </div>
+    <div class="board-strip hidden" id="materialBar">
+      <span id="matBottom"></span>
+      <span id="matTop"></span>
+    </div>
+    <div class="stepper hidden" id="stepper">
+      <button id="histPrev" type="button" aria-label="Previous move">‹</button>
+      <span class="step-label" id="histLabel"></span>
+      <button id="histNext" type="button" aria-label="Next move">›</button>
+    </div>
 
     <div class="card hidden" id="sendPanel">
       <h2 id="sendTitle">Send your move</h2>
       <div class="send-caption" id="sendCaption"></div>
-      <button class="primary" id="shareBtn">Send in Messages</button>
+      <button class="primary" id="shareBtn">Send your move…</button>
       <div class="row">
         <button class="secondary" id="copyBtn">Copy link</button>
-        <a class="secondary" id="smsBtn">Messages…</a>
+        <a class="secondary" id="smsBtn">Open in Messages</a>
       </div>
       <button class="secondary" id="undoBtn">Undo</button>
+      <p class="soft hidden" id="sentNote"></p>
       <p class="linkpeek" id="linkPeek"></p>
       <p class="soft">Send it in the chat you're playing in — the link <i>is</i> the move.</p>
     </div>
@@ -367,6 +432,7 @@
   <div class="picker">
     <b>Promote to</b>
     <div class="choices" id="promoChoices"></div>
+    <button class="secondary" id="promoCancelBtn" style="width:100%">Cancel</button>
   </div>
 </div>
 

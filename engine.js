@@ -712,6 +712,7 @@
     this.drawOfferedBy = null; // "w" | "b" | null
     this.resignedBy = null; // "w" | "b" | null
     this.drawAgreed = false;
+    this.drawAgreedBy = null; // "w" | "b" | null (null on legacy "da=1" payloads)
   }
 
   MatchState.prototype.clone = function () {
@@ -721,6 +722,7 @@
     copy.drawOfferedBy = this.drawOfferedBy;
     copy.resignedBy = this.resignedBy;
     copy.drawAgreed = this.drawAgreed;
+    copy.drawAgreedBy = this.drawAgreedBy;
     return copy;
   };
 
@@ -730,7 +732,8 @@
     if (this.moves.length > 0) parts.push("m=" + this.moves.join(","));
     if (this.drawOfferedBy) parts.push("do=" + this.drawOfferedBy);
     if (this.resignedBy) parts.push("rb=" + this.resignedBy);
-    if (this.drawAgreed) parts.push("da=1");
+    // "da" carries the accepting color; bare "1" is the legacy v1 form.
+    if (this.drawAgreed) parts.push("da=" + (this.drawAgreedBy || "1"));
     return parts.join("&");
   };
 
@@ -779,7 +782,14 @@
           state.resignedBy = value;
           break;
         case "da":
-          state.drawAgreed = value === "1";
+          if (value === WHITE || value === BLACK) {
+            state.drawAgreed = true;
+            state.drawAgreedBy = value;
+          } else if (value === "1") {
+            state.drawAgreed = true; // legacy form: accepter unknown
+          } else {
+            return null;
+          }
           break;
         default:
           break; // Unknown keys ignored for forward compatibility.
