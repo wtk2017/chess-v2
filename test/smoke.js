@@ -158,15 +158,66 @@ async function main() {
   assert.ok((await page.textContent("#statusLine")).indexOf("Draw") !== -1);
   ok("draw offer → accept → agreed draw");
 
-  // Resignation.
+  // Resignation (two-step confirm, no system dialog).
   await page.goto(served.base + "#v=1&m=e2e4");
-  page.once("dialog", function (dialog) { dialog.accept(); });
+  await page.click("#resignBtn");
+  assert.ok((await page.textContent("#resignBtn")).indexOf("Confirm") !== -1, "resign arms first");
   await page.click("#resignBtn");
   var resignLink = await stagedLink(page);
   assert.ok(resignLink.indexOf("rb=b") !== -1, "resignation encoded");
   await page.goto(resignLink);
   assert.ok((await page.textContent("#statusLine")).indexOf("White wins") !== -1);
-  ok("resignation flows through");
+  ok("two-step resignation flows through");
+
+  // Rematch color alternation: the Black-seat viewer takes White locally.
+  await page.goto(served.base + "#v=1&m=e2e4&rb=w"); // White resigned; viewer holds Black
+  await page.click("#rematchBtn");
+  assert.ok((await page.textContent("#statusLine")).indexOf("you're White") !== -1);
+  assert.ok(await page.isVisible("#actionBar"), "live board, not a send panel");
+  ok("rematch hands White to the player who had Black");
+
+  // Landing invite: hands White to whoever opens the link.
+  await page.goto(served.base);
+  await page.click("#inviteBtn");
+  assert.ok(await page.isVisible("#sendPanel"), "invite stages a send panel");
+  assert.ok((await page.textContent("#sendCaption")).indexOf("You take White") !== -1);
+  assert.ok((await page.textContent("#linkPeek")).indexOf("#v=1") !== -1, "blank invite payload");
+  ok("landing can send an invite instead of moving first");
+
+  // History stepper: browse back, then return to the live position.
+  await page.goto(served.base + "#v=1&m=e2e4,e7e5,g1f3");
+  assert.ok((await page.textContent("#histLabel")).indexOf("Latest") !== -1);
+  await page.click("#histPrev");
+  assert.ok((await page.textContent("#histLabel")).indexOf("2 of 3") !== -1, "steps to ply 2");
+  await page.click("#histNext");
+  assert.ok((await page.textContent("#histLabel")).indexOf("Latest") !== -1, "returns to live");
+  ok("history stepper browses the game");
+
+  // Promotion picker can be cancelled.
+  await page.goto(served.base + "#v=1&m=a2a4,b7b5,a4b5,a7a6,b5a6,h7h6,a6a7,g7g6");
+  await tapMove(page, "a7", "b8");
+  assert.ok(await page.isVisible("#promoOverlay"), "picker shown");
+  await page.click("#promoCancelBtn");
+  assert.ok(!(await page.isVisible("#promoOverlay")), "picker dismissed");
+  assert.ok(await page.isVisible("#actionBar"), "board still live after cancel");
+  ok("promotion picker cancel works");
+
+  // Sent-link guard: reopening a link this device sent shows the waiting
+  // view, and the explicit override re-seats for pass-and-play.
+  await page.goto(served.base);
+  await page.click("#newGameBtn");
+  await tapMove(page, "d2", "d4");
+  await page.click("#copyBtn"); // marks the link as sent (records in localStorage)
+  assert.ok((await page.textContent("#statusLine")).indexOf("Link sent") !== -1, "post-send state");
+  var guardedLink = await stagedLink(page);
+  await page.goto(guardedLink);
+  assert.ok((await page.textContent("#statusLine")).indexOf("waiting for Black") !== -1,
+    "own link opens as waiting view");
+  assert.ok(await page.isVisible("#takeOverBtn"), "override offered");
+  await page.click("#takeOverBtn");
+  assert.ok((await page.textContent("#statusLine")).indexOf("you're Black") !== -1,
+    "override re-seats deliberately");
+  ok("sent-link guard prevents accidental opponent seating");
 
   // Corrupt and tampered links are refused.
   await page.goto(served.base + "#v=1&m=e2e4,e2e4");
