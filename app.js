@@ -153,8 +153,13 @@
     incoming = state;
     game = replayed;
     var payload = hash[0] === "#" ? hash.slice(1) : hash;
-    if (wasSentByThisDevice(payload) && !incoming.verdict(game)) {
-      // This device produced this link: show the sender's waiting view.
+    var mine = wasSentByThisDevice(payload);
+    var verdict = incoming.verdict(game);
+    if (verdict) {
+      seat = seatForVerdict(incoming, replayed, mine);
+    } else if (mine && replayed.moves.length > 0) {
+      // This device produced this link (blank invites carry no seat to
+      // guard): show the sender's waiting view.
       sentMode = true;
       seat = E.opponent(game.position.turn);
     } else {
@@ -162,6 +167,23 @@
     }
     show("game");
     render();
+  }
+
+  /**
+   * Which side does this viewer hold on a finished game? Explicit finals
+   * (resignation, agreed draw) name their sender; otherwise the last mover
+   * sent the link, so the receiver is the side to move. The sent-link memory
+   * identifies a sender reopening their own final link.
+   */
+  function seatForVerdict(state, finishedGame, mine) {
+    if (state.resignedBy) {
+      return mine ? state.resignedBy : E.opponent(state.resignedBy);
+    }
+    if (state.drawAgreed && state.drawAgreedBy) {
+      return mine ? state.drawAgreedBy : E.opponent(state.drawAgreedBy);
+    }
+    var turn = finishedGame.position.turn;
+    return mine ? E.opponent(turn) : turn;
   }
 
   function startFreshGame() {
@@ -243,8 +265,12 @@
     if (staged) {
       var stagedVerdict = staged.state.verdict(staged.game);
       if (staged.sent) {
-        line.textContent = "Link sent — waiting for " +
-          (staged.kind === "move" ? colorName(staged.game.position.turn) : "their reply");
+        if (stagedVerdict) {
+          line.textContent = "Link sent — game over, " + scoreString(stagedVerdict);
+        } else {
+          line.textContent = "Link sent — waiting for " +
+            (staged.kind === "move" ? colorName(staged.game.position.turn) : "their reply");
+        }
         detail.textContent = "You can close this page; the game lives in your chat.";
         return;
       }
@@ -428,7 +454,7 @@
     if (shownPly === maxPly) {
       els.histLabel.textContent = "Latest position";
     } else if (shownPly === 0) {
-      els.histLabel.textContent = "Start · move 0 of " + maxPly;
+      els.histLabel.textContent = "Start · 0 of " + maxPly;
     } else {
       var current = displayed().game;
       var ply = shownPly;
@@ -482,9 +508,13 @@
       };
       els.shareBtn.textContent = navigator.share
         ? (shareLabels[staged.kind] || "Send…")
-        : "Copy move link";
-      els.undoBtn.textContent = staged.sent ? "Stage a different move" : "Undo";
-      els.undoBtn.classList.toggle("hidden", staged.kind === "invite" && !staged.sent);
+        : "Copy link";
+      $("copyBtn").classList.toggle("hidden", !navigator.share);
+      if (staged.kind === "invite") {
+        els.undoBtn.textContent = "Never mind";
+      } else {
+        els.undoBtn.textContent = staged.sent ? "Stage a different move" : "Undo";
+      }
       els.sentNote.classList.toggle("hidden", !staged.sent);
       if (staged.sent) {
         els.sentNote.textContent =
@@ -609,7 +639,8 @@
   function markSent() {
     if (!staged || staged.sent) return void render();
     staged.sent = true;
-    recordSent(staged.state.encode());
+    var payload = staged.state.encode();
+    if (payload !== "v=1") recordSent(payload); // blank invites carry no seat to guard
     render();
   }
 
@@ -703,7 +734,10 @@
   });
 
   $("acceptDrawBtn").addEventListener("click", function () {
-    stageSimple("accept", function (state) { state.drawAgreed = true; });
+    stageSimple("accept", function (state) {
+      state.drawAgreed = true;
+      state.drawAgreedBy = seat;
+    });
   });
 
   $("declineDrawBtn").addEventListener("click", function () {
@@ -725,9 +759,16 @@
   });
 
   $("undoBtn").addEventListener("click", function () {
+    var wasInvite = staged && staged.kind === "invite";
     staged = null;
     offerDraw = false;
     viewPly = null;
+    if (wasInvite) {
+      incoming = null;
+      game = null;
+      show("landing");
+      return;
+    }
     render();
   });
 

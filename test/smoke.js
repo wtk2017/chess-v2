@@ -143,7 +143,7 @@ async function main() {
   assert.ok(promoLink.indexOf("a7b8q") !== -1, "promotion encoded: " + promoLink);
   ok("promotion picker stages axb8=Q");
 
-  // Draw offer riding a move, then acceptance.
+  // Draw offer riding a move, then acceptance (da names the accepter).
   await page.goto(served.base + "#v=1&m=e2e4");
   await page.click("#offerDrawBtn");
   await tapMove(page, "e7", "e5");
@@ -153,7 +153,7 @@ async function main() {
   assert.ok(await page.isVisible("#drawBanner"), "offer banner shown to opponent");
   await page.click("#acceptDrawBtn");
   var agreeLink = await stagedLink(page);
-  assert.ok(agreeLink.indexOf("da=1") !== -1, "agreement encoded");
+  assert.ok(agreeLink.indexOf("da=w") !== -1, "agreement names the accepter: " + agreeLink);
   await page.goto(agreeLink);
   assert.ok((await page.textContent("#statusLine")).indexOf("Draw") !== -1);
   ok("draw offer → accept → agreed draw");
@@ -169,20 +169,46 @@ async function main() {
   assert.ok((await page.textContent("#statusLine")).indexOf("White wins") !== -1);
   ok("two-step resignation flows through");
 
-  // Rematch color alternation: the Black-seat viewer takes White locally.
-  await page.goto(served.base + "#v=1&m=e2e4&rb=w"); // White resigned; viewer holds Black
+  // Rematch color alternation: the winner (who held Black) takes White.
+  // Realistic parity: White resigned on their own turn after 1. e4 e5.
+  await page.goto(served.base + "#v=1&m=e2e4,e7e5&rb=w");
+  assert.ok((await page.textContent("#statusLine")).indexOf("Black wins") !== -1,
+    "receiver of a resignation is the winner");
   await page.click("#rematchBtn");
   assert.ok((await page.textContent("#statusLine")).indexOf("you're White") !== -1);
   assert.ok(await page.isVisible("#actionBar"), "live board, not a send panel");
   ok("rematch hands White to the player who had Black");
 
-  // Landing invite: hands White to whoever opens the link.
+  // A winner reopening their own sent mate link is seated as themselves.
+  await page.goto(served.base + "#v=1&m=e2e4,e7e5,d1h5,b8c6,f1c4,g8f6");
+  await tapMove(page, "h5", "f7"); // Qxf7# — Scholar's mate
+  await page.click("#shareBtn");   // marks sent (records the payload)
+  var mateLink = await stagedLink(page);
+  await page.goto(mateLink);
+  assert.ok((await page.textContent("#statusLine")).indexOf("White wins") !== -1);
+  assert.ok((await page.textContent("#overDetail")).indexOf("hands White to your opponent") !== -1,
+    "sender identity recognized on their own final link");
+  ok("verdict links seat the sender correctly via sent-link memory");
+
+  // Landing invite: hands White to whoever opens the link, and blank links
+  // never arm the sent-guard (the recipient must not see "waiting").
   await page.goto(served.base);
   await page.click("#inviteBtn");
   assert.ok(await page.isVisible("#sendPanel"), "invite stages a send panel");
   assert.ok((await page.textContent("#sendCaption")).indexOf("You take White") !== -1);
   assert.ok((await page.textContent("#linkPeek")).indexOf("#v=1") !== -1, "blank invite payload");
-  ok("landing can send an invite instead of moving first");
+  await page.click("#shareBtn"); // send it (records nothing for blank payloads)
+  await page.goto(served.base + "#v=1");
+  assert.ok((await page.textContent("#statusLine")).indexOf("you're White") !== -1,
+    "incoming blank invite is playable, not 'waiting'");
+  ok("landing invite works and blank links skip the sent-guard");
+
+  // An invite can be abandoned back to the landing screen.
+  await page.goto(served.base);
+  await page.click("#inviteBtn");
+  await page.click("#undoBtn"); // labeled "Never mind" for invites
+  assert.ok(await page.isVisible("#landing"), "invite abandoned back to landing");
+  ok("staged invite is not a dead end");
 
   // History stepper: browse back, then return to the live position.
   await page.goto(served.base + "#v=1&m=e2e4,e7e5,g1f3");
@@ -203,11 +229,14 @@ async function main() {
   ok("promotion picker cancel works");
 
   // Sent-link guard: reopening a link this device sent shows the waiting
-  // view, and the explicit override re-seats for pass-and-play.
+  // view, and the explicit override re-seats for pass-and-play. (Headless
+  // Chromium has no navigator.share, so the primary button is the "Copy
+  // link" fallback and the secondary copy button is hidden.)
   await page.goto(served.base);
   await page.click("#newGameBtn");
   await tapMove(page, "d2", "d4");
-  await page.click("#copyBtn"); // marks the link as sent (records in localStorage)
+  assert.ok(!(await page.isVisible("#copyBtn")), "secondary copy hidden without share");
+  await page.click("#shareBtn"); // "Copy link" fallback — marks the link as sent
   assert.ok((await page.textContent("#statusLine")).indexOf("Link sent") !== -1, "post-send state");
   var guardedLink = await stagedLink(page);
   await page.goto(guardedLink);
