@@ -1,127 +1,94 @@
-# ChessMate v2 ♟ — chess over iMessage links
+# ChessMate ♟
 
-**Correspondence chess that travels inside your texts. Playable between two
-iPhones right now — no App Store, no TestFlight, no $99 Apple Developer fee,
-nothing to install.**
+Correspondence chess played over links in your texts. No app to install, no
+account, no server — the entire game travels inside the URL.
 
-[v1](https://github.com/wtk2017/chess) built this as a native iMessage app
-extension and hit the one wall Apple never opens for free: putting an
-extension on your *friend's* phone costs $99/year. v2 keeps v1's design —
-the whole match encoded into a URL, no server, no accounts, no clock — and
-swaps the renderer from a Messages extension to a web page. **Every move is a
-link you send in Messages; the link *is* the move.** The full study and design
-are in [DESIGN.md](DESIGN.md).
-
-## What it looks like
+Each move produces a link. Send it in iMessage (or SMS, RCS, WhatsApp,
+email — anything that carries a URL); your opponent taps it, sees the live
+board, plays, and sends the next link back. The message thread is the game
+record.
 
 | Start a game | A link arrives — your move | Send it like a text | Checkmate |
 | --- | --- | --- | --- |
 | ![Landing screen](docs/screenshots/1-landing.png) | ![Your move view](docs/screenshots/2-your-move.png) | ![Staged move with send panel](docs/screenshots/3-send.png) | ![Checkmate in dark mode](docs/screenshots/4-checkmate.png) |
 
-*Real captures from `index.html` (light and dark mode) at iPhone size.*
+## Play
 
-## Play right now
+1. Open **https://wtk2017.github.io/chess-v2/** on your phone.
+2. **Start a game** and make White's first move — or **send an invite** so the
+   other player takes White.
+3. Tap **Send your move…** and pick the chat.
+4. Your opponent taps the link, moves, and sends theirs back. Repeat.
 
-**One 30-second prerequisite:** this repo is currently **private**, and the
-free hosting paths below serve public repos only (GitHub Pages on the free
-plan, and the githack raw mirror). A chess board holds no secrets — flip the
-repo public: **Settings → General → Danger Zone → Change visibility**.
-*(Want the repo private anyway? Either GitHub Pro unlocks Pages for private
-repos, or point Cloudflare Pages / Netlify — both free — at it; the site is
-just static files at the repo root.)*
+Draw offers ride along with a move; resignation and rematch are one tap
+(rematch alternates colors). Checkmate, stalemate, the fifty-move rule,
+threefold repetition, and dead positions are declared automatically.
 
-Once public, two ways to a URL:
+**Hosting:** the site is static files at the repo root. For GitHub Pages, run
+the **deploy-pages** workflow from the Actions tab once (it enables Pages
+itself and re-deploys on every push to `main`). Any static host works;
+`https://raw.githack.com/wtk2017/chess-v2/main/index.html` serves it with no
+setup at all.
 
-**The real home (one click):** run the **deploy-pages** workflow from the
-Actions tab (it has a manual "Run workflow" button and can deploy any branch —
-including this one, before merging; it also runs automatically on every push
-to `main`, and enables Pages by itself). The game lands at:
+## Features
 
-```
-https://wtk2017.github.io/chess-v2/
-```
+- Full rules enforcement: legality (castling, en passant, promotion and
+  underpromotion), check, and every game-ending condition
+- Tap-to-move board with legal-move hints, automatic orientation, a
+  move-history browser, and a captured-material bar
+- SAN move list and FEN readout; draw/resign/rematch etiquette built in
+- Every incoming link is re-validated by replaying its full move list through
+  the engine — tampered or corrupt links are rejected, and illegal moves
+  cannot be expressed or transmitted
+- Links you have sent reopen on your device as a read-only "waiting" view
+  (with an override for pass-and-play)
+- Light and dark mode; no dependencies, no build step
 
-**Zero-enable dev preview:** this branch served raw through githack, live the
-moment the repo is public, nothing to configure:
+## How it works
 
-```
-https://raw.githack.com/wtk2017/chess-v2/claude/chess-v2-imessage-design-f3kqjf/index.html
-```
-
-Then:
-
-1. Open the page → **Start a game** → make White's first move.
-2. Tap **Send in Messages** → pick your friend → send. The message reads
-   *"♟️ ChessMate — new game! I opened 1. e4. You're Black — your move."*
-3. They tap the link. Safari opens on the live board, oriented their way.
-   They move, tap **Send in Messages**, and reply into the same thread.
-4. Repeat until the engine declares a result. The iMessage thread is the
-   game record; nothing exists anywhere else.
-
-Draw offers ride along with a move ("Offer draw with move"), resignations and
-rematches are one tap, and finished games declare themselves: checkmate,
-stalemate, fifty-move rule, threefold repetition, dead position — the same
-automatic arbitration as v1.
-
-**Bonus v1 never had:** the link works for *green bubbles* too — Android,
-SMS/RCS, WhatsApp, email, anything that can carry a URL.
-
-## What's in this repo
-
-| Path | What it is |
-| --- | --- |
-| `index.html` + `app.js` | The whole app: tap-to-move board with legal-move dots, promotion picker, draw/resign/rematch etiquette, share-sheet send panel. Static files, no build step, no dependencies. |
-| `engine.js` | The full rules engine, ported from v1's Swift: legality (castling, en passant, promotion), check/checkmate/stalemate, fifty-move rule, threefold repetition, insufficient material, SAN, FEN, and the `MatchState` link codec (v1's wire format, minus device seats). Runs in the browser and in Node. |
-| `test/run-tests.js` | Engine suite: perft against the six standard reference positions (v1's exact table; `PERFT_DEEP=1` adds depth-5/4, ~9M nodes) plus rules, SAN, and codec checks. `node test/run-tests.js` |
-| `test/smoke.js` | Headless-Chromium test of the real two-phone loop: taps out games, harvests each staged link, reopens it as the opponent — through mate, promotion, draws, resignation, and corrupt-link rejection. |
-| `tools/imessage-referee.py` | Optional extra: a Mac in a group chat as third-party referee — validates texted moves ("e4"), replies with SAN + a Unicode board + the tap-to-view link. Experimental, macOS only. See [DESIGN.md §5](DESIGN.md). |
-| `DESIGN.md` | The study of v1, the options considered, the wire protocol, and the trade-offs. |
-| `.github/workflows/` | `ci.yml` (engine + browser tests on every push) and `pages.yml` (deploy to GitHub Pages). |
-
-## The wire format
-
-The URL fragment carries v1's `MSMessage` payload, unchanged where it can be:
+The URL fragment carries the whole match:
 
 ```
 https://…/#v=1&m=e2e4,e7e5,g1f3&do=w
             │  │                └─ White offers a draw with this move
-            │  └─ the full UCI move list — the game itself
+            │  └─ full UCI move list — the game itself
             └─ format version
 ```
 
 `rb=` marks a resignation; `da=` an agreed draw, its value naming the
-accepting side (legacy `da=1` still decodes). The full move list (not a
-snapshot) is what makes every link self-verifying: the app replays it through
-the rules engine and refuses illegal or tampered histories. State lives in the
-`#fragment`, which browsers never send to any server — the static host sees
-no game data at all. A 100-move game is still under 1 KB.
+accepting side. Fragments are never sent to the server, so the host sees no
+game data; a 100-move game still encodes in under 1 KB. The full protocol is
+specified in [DESIGN.md](DESIGN.md), along with the design rationale and the
+alternatives that were considered.
 
-## Tests
+## Repository
+
+| Path | Contents |
+| --- | --- |
+| `index.html`, `app.js` | The app — static, dependency-free |
+| `engine.js` | Rules engine: legality, SAN, FEN, verdicts, link codec; runs in browser and Node |
+| `test/` | Engine suite (perft against the six standard reference positions, plus rules/SAN/codec checks) and a headless-Chromium test that plays full games through real generated links |
+| `tools/imessage-referee.py` | Optional macOS bot that referees a group chat from texted moves (experimental) |
+| `DESIGN.md` | Design notes, wire protocol, trade-offs |
+
+## Development
 
 ```sh
-node test/run-tests.js              # engine: perft + rules + codec  (~1s)
-PERFT_DEEP=1 node test/run-tests.js # adds the 9M-node deep perft    (~30s)
+node test/run-tests.js               # engine: perft + rules + codec  (~1s)
+PERFT_DEEP=1 node test/run-tests.js  # adds ~9M-node deep perft       (~30s)
 
 npm i playwright && npx playwright install chromium
-node test/smoke.js                  # real browser, real links, 12 scenarios
+node test/smoke.js                   # browser: 19 end-to-end scenarios
 ```
 
-CI runs all of it on every push.
+CI runs both suites on every push.
 
-## Honest limitations
+## Limitations
 
-- **Honor system.** Opening a live link seats you as the side to move; between
-  friends that's exactly postcard chess. Tampering is *detectable* (every link
-  re-validates; the thread keeps every prior link) but not *prevented*.
-  Same trust model as v1's device UUIDs, fewer moving parts.
-- **One link per move** instead of v1's single self-updating bubble — plain
-  links can't reuse an `MSSession`. The thread becomes a scrollable game log.
-- The link preview card is generic ("♟️ ChessMate — your move"), not a board
-  image; per-position previews need a tiny edge worker (free, but a server —
-  see DESIGN.md §6).
-
-## The road back to native
-
-Nothing here replaces v1 — it *unblocks* it. The wire formats are compatible,
-so if the $99 is ever paid, the extension and the web page ship as one
-product: the native board where it's installed, the link everywhere else.
+- **Honor system.** Opening a live link seats you as the side to move; there
+  are no accounts, so identity is trust between players. Tampering is
+  detectable (every link re-validates, and the thread preserves history) but
+  not prevented.
+- **One link per move.** The thread is the game log; there is no
+  self-updating message bubble.
+- Link previews show a generic card, not the board position.
