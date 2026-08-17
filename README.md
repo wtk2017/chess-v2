@@ -22,20 +22,30 @@ are in [DESIGN.md](DESIGN.md).
 
 ## Play right now
 
-**Zero-setup, this minute** — open the dev preview URL of this branch on your
-iPhone (it's this repo served raw through githack):
+**One 30-second prerequisite:** this repo is currently **private**, and the
+free hosting paths below serve public repos only (GitHub Pages on the free
+plan, and the githack raw mirror). A chess board holds no secrets — flip the
+repo public: **Settings → General → Danger Zone → Change visibility**.
+*(Want the repo private anyway? Either GitHub Pro unlocks Pages for private
+repos, or point Cloudflare Pages / Netlify — both free — at it; the site is
+just static files at the repo root.)*
 
-```
-https://raw.githack.com/wtk2017/chess-v2/claude/chess-v2-imessage-design-f3kqjf/index.html
-```
+Once public, two ways to a URL:
 
-**The real home (one click):** enable GitHub Pages — repo **Settings → Pages →
-Source: GitHub Actions** — then run the **deploy-pages** workflow from the
-Actions tab (it has a manual "Run workflow" button and can deploy any branch;
-it also runs automatically on every push to `main`). The game lands at:
+**The real home (one click):** run the **deploy-pages** workflow from the
+Actions tab (it has a manual "Run workflow" button and can deploy any branch —
+including this one, before merging; it also runs automatically on every push
+to `main`, and enables Pages by itself). The game lands at:
 
 ```
 https://wtk2017.github.io/chess-v2/
+```
+
+**Zero-enable dev preview:** this branch served raw through githack, live the
+moment the repo is public, nothing to configure:
+
+```
+https://raw.githack.com/wtk2017/chess-v2/claude/chess-v2-imessage-design-f3kqjf/index.html
 ```
 
 Then:

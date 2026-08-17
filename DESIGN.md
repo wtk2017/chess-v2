@@ -225,11 +225,14 @@ needs no third party at all.
 
 ## 6. Deployment and the road from here
 
-**Today (this branch):** open the raw.githack URL for `index.html` (in the
-README) on two iPhones and play — no setup at all.
+**Today:** flip the repo public (both free hosting paths — GitHub Pages on
+the free plan and the githack raw mirror — serve public repos only; a repo
+that must stay private can use Cloudflare Pages/Netlify free tiers instead).
+Then open the raw.githack URL for `index.html` (in the README) on two iPhones
+and play — no other setup at all.
 
-**This week (one click):** enable GitHub Pages → deploy the `pages.yml`
-workflow (`workflow_dispatch` runs it on any branch). The site lands at
+**This week (one click):** run the `pages.yml` workflow (`workflow_dispatch`
+deploys any branch and auto-enables Pages). The site lands at
 `https://wtk2017.github.io/chess-v2/`, a stable, pretty URL that iMessage
 renders with the OG title "♟️ ChessMate — your move".
 
