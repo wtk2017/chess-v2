@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ChessMate — chess over iMessage links</title>
+<meta name="description" content="Correspondence chess that travels inside your texts. Tap the link, see the live board, make your move, send the link back. No app, no account, no server.">
+<meta property="og:title" content="♟️ ChessMate — your move">
+<meta property="og:description" content="Tap to open the live board and play your move. The whole game travels in the link — no app, no account.">
+<meta property="og:type" content="website">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f1e7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171310">
+<meta name="apple-mobile-web-app-title" content="ChessMate">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root {
+    --bg: #f6f1e7;
+    --card: #fffdf8;
+    --ink: #2b2620;
+    --ink-soft: #6d6357;
+    --line: #e3d9c8;
+    --accent: #3f7d4e;
+    --accent-ink: #ffffff;
+    --danger: #b3402e;
+    --light-sq: #f0d9b5;      /* v1 BoardPainter.lightSquare */
+    --dark-sq: #b58863;       /* v1 BoardPainter.darkSquare  */
+    --last-move: rgba(155, 199, 0, 0.40);
+    --selected: rgba(20, 102, 191, 0.45);
+    --target: rgba(26, 26, 26, 0.25);
+    --check: rgba(217, 46, 46, 0.55);
+    --shadow: 0 1px 2px rgba(43, 38, 32, 0.08), 0 8px 24px rgba(43, 38, 32, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171310;
+      --card: #221c17;
+      --ink: #f0e9df;
+      --ink-soft: #b0a394;
+      --line: #3a3229;
+      --accent: #6db07c;
+      --accent-ink: #10160f;
+      --danger: #e07b64;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 12px 14px 40px;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 2px 10px;
+  }
+  header h1 { font-size: 21px; margin: 0; letter-spacing: -0.01em; }
+  header h1 .pawn { margin-right: 2px; }
+  header .sub { color: var(--ink-soft); font-size: 13px; }
+  .iconbtn {
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 10px;
+    font-size: 15px;
+    padding: 6px 10px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    margin: 10px 0;
+  }
+  .hidden { display: none !important; }
+  h2 { font-size: 17px; margin: 0 0 6px; }
+  p { margin: 6px 0; }
+  .soft { color: var(--ink-soft); font-size: 14px; }
+  .status-line { font-size: 17px; font-weight: 650; margin: 0; }
+  .status-detail { color: var(--ink-soft); font-size: 14px; margin: 3px 0 0; }
+  .status-check { color: var(--danger); font-weight: 650; }
+
+  button.primary, a.primary {
+    display: block;
+    width: 100%;
+    border: 0;
+    border-radius: 14px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 17px;
+    font-weight: 650;
+    padding: 14px;
+    margin: 8px 0 0;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .secondary {
+    display: block;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 12px;
+    font-size: 15px;
+    padding: 10px;
+    margin-top: 8px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
+  }
+  .secondary.destructive { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+  .secondary[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: var(--accent);
+  }
+  button:disabled { opacity: 0.5; }
+
+  /* Board */
+  .board-wrap { margin: 12px auto 0; width: min(100%, 440px); }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    touch-action: manipulation;
+  }
+  .sq {
+    position: relative;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font-size: clamp(20px, 9.2vw, 40px);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    font-family: "Apple Symbols", -apple-system, "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif;
+  }
+  .sq.light { background: var(--light-sq); }
+  .sq.dark { background: var(--dark-sq); }
+  .sq .tint { position: absolute; inset: 0; pointer-events: none; }
+  .sq.lastmove .tint { background: var(--last-move); }
+  .sq.selected .tint { background: var(--selected); }
+  .sq.incheck .tint { background: var(--check); }
+  .sq .glyph { position: relative; z-index: 1; }
+  .sq .glyph.w { color: #ffffff; text-shadow: 0 1px 1.5px rgba(0,0,0,.65), 0 0 1px rgba(0,0,0,.9); }
+  .sq .glyph.b { color: #151210; text-shadow: 0 1px 1px rgba(255,255,255,.28); }
+  .sq.dot::after {
+    content: "";
+    position: absolute;
+    width: 26%;
+    height: 26%;
+    border-radius: 50%;
+    background: var(--target);
+    z-index: 2;
+  }
+  .sq.ring::after {
+    content: "";
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    border: 3.5px solid var(--target);
+    z-index: 2;
+  }
+  .sq .coord {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: -apple-system, sans-serif;
+    opacity: 0.75;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .sq .coord.rank { top: 2px; left: 3px; }
+  .sq .coord.file { bottom: 1px; right: 3px; }
+  .sq.light .coord { color: var(--dark-sq); }
+  .sq.dark .coord { color: var(--light-sq); }
+
+  /* Send panel */
+  .send-caption {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 15px;
+    margin: 8px 0;
+    overflow-wrap: anywhere;
+  }
+  .linkpeek {
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 6px 0 0;
+  }
+
+  /* Draw offer banner */
+  .banner {
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin: 10px 0 0;
+    font-size: 15px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  }
+
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--ink-soft); font-size: 14px; }
+  .moves-text { font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; overflow-wrap: anywhere; }
+  .fen { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+  ol.steps { margin: 8px 0 0; padding-left: 22px; }
+  ol.steps li { margin: 6px 0; }
+
+  /* Promotion picker */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 16, 12, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .picker {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .picker .choices { display: flex; gap: 10px; margin-top: 10px; }
+  .picker button {
+    font-size: 42px;
+    line-height: 1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--light-sq);
+    cursor: pointer;
+    font-family: "Apple Symbols", -apple-system, "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif;
+  }
+  .picker button .glyph.w { color: #fff; text-shadow: 0 1px 1.5px rgba(0,0,0,.65), 0 0 1px rgba(0,0,0,.9); }
+  .picker button .glyph.b { color: #151210; }
+
+  footer { text-align: center; margin-top: 18px; }
+  footer a { color: var(--ink-soft); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><span class="pawn">♟︎</span> ChessMate</h1>
+    <span class="sub">chess by text link</span>
+    <button class="iconbtn hidden" id="flipBtn" aria-label="Flip board">⇅</button>
+  </header>
+
+  <!-- Landing -->
+  <section id="landing" class="hidden">
+    <div class="card">
+      <h2>Play chess inside your texts.</h2>
+      <p class="soft">Every move is a link you send in Messages. Your friend taps it, sees the live
+        board, moves, and sends the link back. No app to install, no account, no server holding
+        your game — the whole match travels inside the link.</p>
+      <button class="primary" id="newGameBtn">Start a game — you play White</button>
+    </div>
+    <div class="card">
+      <h2>How it works</h2>
+      <ol class="steps soft">
+        <li>Make your move on the board.</li>
+        <li>Tap <b>Send in Messages</b> — a link is shared to your chat.</li>
+        <li>Your friend taps the link, moves, and sends theirs back. That's the whole game.</li>
+      </ol>
+      <p class="soft">Works over iMessage, SMS, RCS, WhatsApp, email — anything that carries a link.
+        Got a ChessMate link already? Just tap it and this page becomes your board.</p>
+    </div>
+  </section>
+
+  <!-- Corrupt link -->
+  <section id="corrupt" class="hidden">
+    <div class="card">
+      <h2>That link isn't a valid game</h2>
+      <p class="soft" id="corruptDetail">The move list is damaged or contains an illegal move, so the
+        board can't be trusted. Ask your opponent to re-send their last link.</p>
+      <button class="primary" id="corruptNewBtn">Start a fresh game instead</button>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <section id="game" class="hidden">
+    <div class="card" id="statusCard">
+      <p class="status-line" id="statusLine" role="status"></p>
+      <p class="status-detail" id="statusDetail"></p>
+      <div class="banner hidden" id="drawBanner">
+        <span id="drawBannerText"></span>
+        <div class="row">
+          <button class="secondary" id="acceptDrawBtn">Accept draw</button>
+          <button class="secondary" id="declineDrawBtn">Play on</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" aria-label="Chess board"></div>
+    </div>
+
+    <div class="card hidden" id="sendPanel">
+      <h2 id="sendTitle">Send your move</h2>
+      <div class="send-caption" id="sendCaption"></div>
+      <button class="primary" id="shareBtn">Send in Messages</button>
+      <div class="row">
+        <button class="secondary" id="copyBtn">Copy link</button>
+        <a class="secondary" id="smsBtn">Messages…</a>
+      </div>
+      <button class="secondary" id="undoBtn">Undo</button>
+      <p class="linkpeek" id="linkPeek"></p>
+      <p class="soft">Send it in the chat you're playing in — the link <i>is</i> the move.</p>
+    </div>
+
+    <div class="row hidden" id="actionBar">
+      <button class="secondary" id="offerDrawBtn" aria-pressed="false">Offer draw with move</button>
+      <button class="secondary destructive" id="resignBtn">Resign</button>
+    </div>
+
+    <div class="card hidden" id="overPanel">
+      <h2 id="overTitle"></h2>
+      <p class="soft" id="overDetail"></p>
+      <button class="primary" id="rematchBtn">Send a rematch link</button>
+    </div>
+
+    <details id="movesDetails">
+      <summary>Moves</summary>
+      <p class="moves-text" id="movesText"></p>
+      <p class="fen" id="fenText"></p>
+    </details>
+  </section>
+
+  <footer>
+    <a href="https://github.com/wtk2017/chess-v2">how this works · wtk2017/chess-v2</a>
+  </footer>
+</main>
+
+<div class="overlay hidden" id="promoOverlay" role="dialog" aria-label="Choose promotion piece">
+  <div class="picker">
+    <b>Promote to</b>
+    <div class="choices" id="promoChoices"></div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
