@@ -43,6 +43,10 @@ function ok(label) {
   assert.strictEqual(buildMeta("v=1&m=e2e5"), null);
   assert.strictEqual(buildMeta("garbage"), null);
   ok("illegal and garbage payloads produce no meta");
+
+  const withId = buildMeta("v=1&id=abc12345&m=e2e4");
+  assert.strictEqual(withId.title, "♟️ 1. e4 — your move");
+  ok("game ids pass through the preview pipeline");
 }
 
 // ---------------------------------------------------------------------------

@@ -110,7 +110,14 @@
   // Sent-link memory (localStorage; payload strings only, capped)
   // ---------------------------------------------------------------------------
 
-  var SENT_KEY = "chessmate.sent.v1";
+  // v2: entries are full payloads including the per-game id, so identical
+  // move sequences in different games can never collide. (v1 keyed on the
+  // payload alone — chess openings repeat, so it misfired across games.)
+  var SENT_KEY = "chessmate.sent.v2";
+
+  function newGameId() {
+    return (Math.random().toString(36).slice(2) + "00000000").slice(0, 8);
+  }
 
   function sentList() {
     try {
@@ -183,7 +190,10 @@
     }
     incoming = state;
     game = replayed;
-    var mine = wasSentByThisDevice(payload);
+    // "Mine" only means something when the payload carries a game id —
+    // id-less payloads are not unique across games (openings repeat), so
+    // they never arm the guard or claim sender identity.
+    var mine = !!incoming.gameId && wasSentByThisDevice(payload);
     var verdict = incoming.verdict(game);
     if (verdict) {
       seat = seatForVerdict(incoming, replayed, mine);
@@ -219,6 +229,7 @@
   function startFreshGame() {
     resetTransient();
     incoming = new E.MatchState();
+    incoming.gameId = newGameId();
     game = new E.Game();
     seat = E.WHITE;
     if (location.hash) {
@@ -232,9 +243,12 @@
   function stageInvite() {
     resetTransient();
     incoming = new E.MatchState();
+    incoming.gameId = newGameId();
     game = new E.Game();
     seat = E.BLACK; // the inviter will answer as Black
-    staged = { state: new E.MatchState(), game: new E.Game(), kind: "invite", sent: false };
+    var invite = new E.MatchState();
+    invite.gameId = incoming.gameId;
+    staged = { state: invite, game: new E.Game(), kind: "invite", sent: false };
     if (location.hash) history.replaceState(null, "", baseURL());
     show("game");
     render();
@@ -622,6 +636,7 @@
 
   function commitMove(move) {
     var state = incoming.clone();
+    if (!state.gameId) state.gameId = newGameId(); // adopt legacy id-less games
     state.moves.push(E.moveToUci(move));
     state.drawOfferedBy = offerDraw ? seat : null;
     var next = state.makeGame();
@@ -659,6 +674,7 @@
 
   function stageSimple(kind, mutate) {
     var state = incoming.clone();
+    if (!state.gameId) state.gameId = newGameId(); // adopt legacy id-less games
     mutate(state);
     staged = { state: state, game: game, kind: kind, sent: false };
     selection = -1;
@@ -669,8 +685,7 @@
   function markSent() {
     if (!staged || staged.sent) return void render();
     staged.sent = true;
-    var payload = staged.state.encode();
-    if (payload !== "v=1") recordSent(payload); // blank invites carry no seat to guard
+    recordSent(staged.state.encode());
     render();
   }
 
@@ -783,7 +798,9 @@
       startFreshGame();
       return;
     }
-    staged = { state: new E.MatchState(), game: new E.Game(), kind: "rematch", sent: false };
+    var rematchState = new E.MatchState();
+    rematchState.gameId = newGameId();
+    staged = { state: rematchState, game: new E.Game(), kind: "rematch", sent: false };
     viewPly = null;
     render();
   });
