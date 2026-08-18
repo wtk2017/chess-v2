@@ -14,7 +14,10 @@ record.
 
 ## Play
 
-1. Open **https://wtk2017.github.io/chess-v2/** on your phone.
+1. Open **https://chess-v2.williamkilgallin.workers.dev** on your phone —
+   move links sent from there arrive with a picture of the position.
+   (The GitHub Pages mirror at https://wtk2017.github.io/chess-v2/ plays
+   identically, with generic link previews.)
 2. **Start a game** and make White's first move — or **send an invite** so the
    other player takes White.
 3. Tap **Send your move…** and pick the chat.
@@ -61,15 +64,16 @@ game data; a 100-move game still encodes in under 1 KB. The full protocol is
 specified in [DESIGN.md](DESIGN.md), along with the design rationale and the
 alternatives that were considered.
 
-### Rich link previews (optional)
+### Rich link previews
 
 Message apps build previews without the `#fragment` and without running
-JavaScript, so links from the static site show a generic card. Deploying the
-included [link-preview worker](worker/README.md) (Cloudflare free tier, ~5
-minutes, zero dependencies) upgrades every link sent from its URL to a
-rendered image of the actual position plus a caption like *"♟️ 12… Nf6 —
-your move"*. Games played through the worker use a `?g=` query form of the
-same payload; the fragment form stays canonical and both open everywhere.
+JavaScript, so links from the static site show a generic card. The included
+[link-preview worker](worker/README.md) (Cloudflare free tier, zero
+dependencies) upgrades every link sent from its URL to a rendered image of
+the actual position plus a caption like *"♟️ 12… Nf6 — your move"* — it is
+deployed for this repo at **https://chess-v2.williamkilgallin.workers.dev**.
+Games played through the worker use a `?g=` query form of the same payload;
+the fragment form stays canonical and both open everywhere.
 
 ## Repository
 

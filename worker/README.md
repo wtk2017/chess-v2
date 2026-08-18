@@ -1,5 +1,10 @@
 # Rich link previews
 
+> **Live for this repo:** https://chess-v2.williamkilgallin.workers.dev —
+> deployed via Cloudflare Workers Builds connected to this repository, so
+> every push to `main` redeploys automatically. (The worker name `chess-v2`
+> in `wrangler.toml` matches the connected project's name.)
+
 iMessage (and every other messenger) builds a link preview by fetching the
 URL **without its `#fragment`** and **without running JavaScript** — so the
 static app can only ever show a generic card. This worker is the thin
@@ -27,19 +32,25 @@ fine on either host.
 
 ## Deploy (free, ~5 minutes, once)
 
+The way this repo is deployed — **Cloudflare Workers Builds** (no secrets
+to manage):
+
 1. Create a free [Cloudflare account](https://dash.cloudflare.com/sign-up)
    (Workers free tier: 100k requests/day).
-2. Make an API token: dash → My Profile → API Tokens → **Create Token** →
-   template **Edit Cloudflare Workers**.
-3. Find your Account ID (dash → Workers & Pages → right-hand sidebar).
-4. Add both as repository secrets (repo Settings → Secrets and variables →
-   Actions): `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-5. Run the **deploy-worker** workflow from the Actions tab. It prints the
-   worker URL — typically `https://chessmate.<your-subdomain>.workers.dev`.
+2. Dash → Workers & Pages → Create → **Import a repository** → pick this
+   repo.
+3. Settings: build command *empty*, deploy command `npx wrangler deploy`,
+   **Path `/worker`**, API token auto-created, no variables.
+4. Deploy. Cloudflare prints the worker URL and re-deploys on every push to
+   the production branch.
 
-Play from that URL (bookmark it / add to home screen) and every move link
-you send carries a live board preview. The workflow re-deploys automatically
-when `worker/` changes on `main`.
+Alternative, secrets-based route: add `CLOUDFLARE_API_TOKEN` (template
+*Edit Cloudflare Workers*) and `CLOUDFLARE_ACCOUNT_ID` as repository
+Actions secrets and run the **deploy-worker** workflow — it no-ops politely
+until the secrets exist.
+
+Play from the worker URL (bookmark it / add to home screen) and every move
+link you send carries a live board preview.
 
 ## Development
 
