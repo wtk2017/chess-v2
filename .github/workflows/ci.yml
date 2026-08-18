@@ -17,6 +17,8 @@ jobs:
         run: node test/run-tests.js
         env:
           PERFT_DEEP: "1"
+      - name: Link-preview worker suite
+        run: node test/worker-tests.mjs
 
   browser:
     name: browser smoke (two-phone link loop)

@@ -61,6 +61,16 @@ game data; a 100-move game still encodes in under 1 KB. The full protocol is
 specified in [DESIGN.md](DESIGN.md), along with the design rationale and the
 alternatives that were considered.
 
+### Rich link previews (optional)
+
+Message apps build previews without the `#fragment` and without running
+JavaScript, so links from the static site show a generic card. Deploying the
+included [link-preview worker](worker/README.md) (Cloudflare free tier, ~5
+minutes, zero dependencies) upgrades every link sent from its URL to a
+rendered image of the actual position plus a caption like *"♟️ 12… Nf6 —
+your move"*. Games played through the worker use a `?g=` query form of the
+same payload; the fragment form stays canonical and both open everywhere.
+
 ## Repository
 
 | Path | Contents |

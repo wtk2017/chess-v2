@@ -1,0 +1,6 @@
+name = "chessmate"
+main = "worker.mjs"
+compatibility_date = "2026-01-01"
+
+[vars]
+PAGES_ORIGIN = "https://wtk2017.github.io/chess-v2"
