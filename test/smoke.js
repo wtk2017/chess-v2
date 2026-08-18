@@ -84,7 +84,8 @@ async function main() {
   await tapMove(page, "e2", "e4");
   assert.ok(await page.isVisible("#sendPanel"), "send panel visible");
   var link1 = await stagedLink(page);
-  assert.ok(link1.indexOf("#v=1&m=e2e4") !== -1, "link encodes the move: " + link1);
+  assert.ok(link1.indexOf("#v=1&id=") !== -1 && link1.indexOf("&m=e2e4") !== -1,
+    "link encodes the game id and move: " + link1);
   var caption = await page.textContent("#sendCaption");
   assert.ok(caption.indexOf("1. e4") !== -1, "caption mentions the move: " + caption);
   ok("White's move stages a v1-format link");
@@ -248,6 +249,25 @@ async function main() {
     "override re-seats deliberately");
   ok("sent-link guard prevents accidental opponent seating");
 
+  // Identical move lists in DIFFERENT games must never trip the guard —
+  // this is the reported field bug (openings repeat; a self-test had sent
+  // the same sequence the friend later played).
+  await page.goto(served.base);
+  await page.evaluate(function () {
+    localStorage.setItem("chessmate.sent.v2", JSON.stringify(["v=1&id=aaaa1111&m=c2c4,c7c5"]));
+    localStorage.setItem("chessmate.sent.v1", JSON.stringify(["v=1&m=c2c4,c7c5"]));
+  });
+  await page.goto(served.base + "#v=1&id=bbbb2222&m=c2c4,c7c5"); // same moves, other game
+  assert.ok((await page.textContent("#statusLine")).indexOf("you're White") !== -1,
+    "different game id: seated normally");
+  await page.goto(served.base + "#v=1&m=c2c4,c7c5"); // id-less link, legacy memory
+  assert.ok((await page.textContent("#statusLine")).indexOf("you're White") !== -1,
+    "id-less payloads never arm the guard");
+  await page.goto(served.base + "#v=1&id=aaaa1111&m=c2c4,c7c5"); // truly the sent link
+  assert.ok((await page.textContent("#statusLine")).indexOf("Sent — waiting") !== -1,
+    "the genuinely-sent link still guards");
+  ok("guard keys on game identity, not move coincidence");
+
   // Query-form links (?g=…) boot exactly like fragment links — this is the
   // form the link-preview worker emits.
   await page.goto(served.base + "?g=" + encodeURIComponent("v=1&m=e2e4"));
@@ -268,7 +288,8 @@ async function main() {
   await page.click("#newGameBtn");
   await tapMove(page, "e2", "e4");
   var richLink = (await page.textContent("#linkPeek")).trim();
-  assert.ok(richLink.indexOf("?g=v%3D1%26m%3De2e4") !== -1, "rich link uses ?g= form: " + richLink);
+  assert.ok(richLink.indexOf("?g=v%3D1%26id%3D") !== -1 && richLink.indexOf("%26m%3De2e4") !== -1,
+    "rich link uses ?g= form with a game id: " + richLink);
   ok("rich-links flag switches staged links to the query form");
 
   // Corrupt and tampered links are refused.

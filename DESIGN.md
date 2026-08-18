@@ -107,11 +107,15 @@ Grammar of the fragment payload:
 
 ```
 payload   = "v=" version *( "&" field )
-field     = "m=" move *( "," move )      ; full UCI move list from the start position
+field     = "id=" 1*16idchar             ; random per-game identifier — lets device-side
+                                         ;   memory (sent-link guard) tell apart games
+                                         ;   whose move lists coincide
+          / "m=" move *( "," move )      ; full UCI move list from the start position
           / "do=" color                  ; draw offered by (rides with the offerer's move)
           / "rb=" color                  ; resigned by
           / "da=" ( color / "1" )        ; draw agreed, by whom ("1" = legacy, accepter unknown)
 color     = "w" / "b"
+idchar    = ALPHA / DIGIT / "_" / "-"
 move      = <UCI: from square, to square, optional promotion piece>  ; e2e4, e7e8q
 ```
 

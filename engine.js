@@ -708,6 +708,10 @@
 
   function MatchState() {
     this.version = MATCH_VERSION;
+    // Random per-game identifier. Distinguishes games whose move lists
+    // coincide (openings repeat!) — without it, any device-side memory of
+    // sent links would collide across games. Null on legacy payloads.
+    this.gameId = null;
     this.moves = []; // UCI strings
     this.drawOfferedBy = null; // "w" | "b" | null
     this.resignedBy = null; // "w" | "b" | null
@@ -715,9 +719,12 @@
     this.drawAgreedBy = null; // "w" | "b" | null (null on legacy "da=1" payloads)
   }
 
+  var GAME_ID_RE = /^[A-Za-z0-9_-]{1,16}$/;
+
   MatchState.prototype.clone = function () {
     var copy = new MatchState();
     copy.version = this.version;
+    copy.gameId = this.gameId;
     copy.moves = this.moves.slice();
     copy.drawOfferedBy = this.drawOfferedBy;
     copy.resignedBy = this.resignedBy;
@@ -729,6 +736,7 @@
   /** Encodes as a URL-fragment-safe query string, e.g. "v=1&m=e2e4,e7e5&do=w". */
   MatchState.prototype.encode = function () {
     var parts = ["v=" + this.version];
+    if (this.gameId) parts.push("id=" + this.gameId);
     if (this.moves.length > 0) parts.push("m=" + this.moves.join(","));
     if (this.drawOfferedBy) parts.push("do=" + this.drawOfferedBy);
     if (this.resignedBy) parts.push("rb=" + this.resignedBy);
@@ -765,6 +773,10 @@
           state.version = parseInt(value, 10);
           if (isNaN(state.version)) return null;
           sawVersion = true;
+          break;
+        case "id":
+          if (!GAME_ID_RE.test(value)) return null;
+          state.gameId = value;
           break;
         case "m":
           var tokens = value.split(",");

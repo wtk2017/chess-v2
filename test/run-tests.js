@@ -293,6 +293,17 @@ section("MatchState codec");
   assertEqual(agreedBy.drawAgreedBy, "b", "colored da names the accepter");
   assertEqual(agreedBy.encode(), "v=1&m=e2e4&da=b", "colored da round-trips");
   assertEqual(MatchState.decode("v=1&da=x"), null, "bad da value rejected");
+
+  // Per-game id: distinguishes games with identical move lists.
+  var withId = new MatchState();
+  withId.gameId = "ab12CD_-";
+  withId.moves = ["e2e4"];
+  assertEqual(withId.encode(), "v=1&id=ab12CD_-&m=e2e4", "game id encodes after version");
+  assertEqual(MatchState.decode(withId.encode()), withId, "game id round-trips");
+  assertEqual(MatchState.decode("v=1&m=e2e4").gameId, null, "legacy payloads have no id");
+  assertEqual(MatchState.decode("v=1&id=bad id&m=e2e4"), null, "id with a space rejected");
+  assertEqual(MatchState.decode("v=1&id=&m=e2e4"), null, "empty id rejected");
+  assertEqual(MatchState.decode("v=1&id=aaaaaaaaaaaaaaaaa"), null, "overlong id rejected");
   var mate = MatchState.decode("v=1&m=f2f3,e7e5,g2g4,d8h4");
   assertEqual(mate.verdict(mate.makeGame()), { winner: "b", reason: "checkmate" },
     "checkmate verdict");
