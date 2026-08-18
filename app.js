@@ -77,7 +77,24 @@
   var orientationOverride = null;
 
   function baseURL() {
-    return location.href.split("#")[0];
+    return location.href.split(/[?#]/)[0];
+  }
+
+  /** Served through the link-preview worker? (It injects this meta tag.) */
+  function richLinks() {
+    return !!document.querySelector('meta[name="chessmate-rich-links"]');
+  }
+
+  /**
+   * The shareable URL for a state. The #fragment form is canonical (never
+   * reaches any server); the ?g= query form opts into per-position link
+   * previews when the app is served through the preview worker.
+   */
+  function linkFor(state) {
+    var payload = state.encode();
+    return richLinks()
+      ? baseURL() + "?g=" + encodeURIComponent(payload)
+      : baseURL() + "#" + payload;
   }
 
   function colorName(color) {
@@ -137,14 +154,28 @@
 
   function boot() {
     resetTransient();
+    var payload = null;
     var hash = location.hash;
-    if (!hash || hash === "#") {
+    if (hash && hash !== "#") {
+      payload = hash.slice(1);
+    } else {
+      // Query form (?g=…) — used by the link-preview worker.
+      var match = /(?:^|[?&])g=([^&]*)/.exec(location.search);
+      if (match) {
+        try {
+          payload = decodeURIComponent(match[1]);
+        } catch (error) {
+          payload = null;
+        }
+      }
+    }
+    if (!payload) {
       incoming = null;
       game = null;
       show("landing");
       return;
     }
-    var state = E.MatchState.decode(hash);
+    var state = E.MatchState.decode(payload);
     var replayed = state && state.makeGame();
     if (!state || !replayed) {
       show("corrupt");
@@ -152,7 +183,6 @@
     }
     incoming = state;
     game = replayed;
-    var payload = hash[0] === "#" ? hash.slice(1) : hash;
     var mine = wasSentByThisDevice(payload);
     var verdict = incoming.verdict(game);
     if (verdict) {
@@ -488,7 +518,7 @@
 
     els.sendPanel.classList.toggle("hidden", !staged);
     if (staged) {
-      var link = baseURL() + "#" + staged.state.encode();
+      var link = linkFor(staged.state);
       var caption = buildCaption();
       els.sendCaption.textContent = caption;
       els.linkPeek.textContent = link;
@@ -774,7 +804,7 @@
 
   els.shareBtn.addEventListener("click", function () {
     if (!staged) return;
-    var link = baseURL() + "#" + staged.state.encode();
+    var link = linkFor(staged.state);
     var caption = buildCaption();
     if (navigator.share) {
       navigator.share({ text: caption, url: link }).then(markSent, function () { /* cancelled */ });
@@ -786,7 +816,7 @@
 
   $("copyBtn").addEventListener("click", function () {
     if (!staged) return;
-    copyText(baseURL() + "#" + staged.state.encode(), $("copyBtn"));
+    copyText(linkFor(staged.state), $("copyBtn"));
     markSent();
   });
 

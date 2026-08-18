@@ -237,11 +237,12 @@ deploys any branch and auto-enables Pages). The site lands at
 renders with the OG title "♟️ ChessMate — your move".
 
 **Later, still $0:**
-- **Per-position link previews** — the one place a server earns its keep: a
-  tiny edge function (Cloudflare Workers free tier) that serves the same
-  static page but stamps `og:image` with a rendered board for the `m=` list in
-  a *query-string* variant of the payload. Pure additive; the fragment format
-  stays canonical.
+- **Per-position link previews** — implemented in `worker/` (see its README):
+  a dependency-free Cloudflare Worker that proxies the static app, stamps
+  per-position `og:title`/`og:image` for a *query-string* variant of the
+  payload (`?g=…`), and renders the board PNG itself from pre-baked sprites,
+  validating every payload through the same engine. Pure additive; the
+  fragment format stays canonical and private.
 - Player names in the payload (`wn=`/`bn=`), PGN export, a move-list replayer
   — the full move list already in every link makes these free.
 - "Add to Home Screen" polish (icons, standalone display).

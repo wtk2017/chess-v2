@@ -248,6 +248,29 @@ async function main() {
     "override re-seats deliberately");
   ok("sent-link guard prevents accidental opponent seating");
 
+  // Query-form links (?g=…) boot exactly like fragment links — this is the
+  // form the link-preview worker emits.
+  await page.goto(served.base + "?g=" + encodeURIComponent("v=1&m=e2e4"));
+  assert.ok((await page.textContent("#statusLine")).indexOf("you're Black") !== -1,
+    "query payload boots the board");
+  await page.goto(served.base + "?g=" + encodeURIComponent("v=1&m=e2e5"));
+  assert.ok(await page.isVisible("#corrupt"), "illegal query payload refused");
+  ok("?g= payloads boot and validate like fragments");
+
+  // With the worker's rich-links flag present, staged links switch to the
+  // query form (so previews work); without it they stay fragments.
+  await page.goto(served.base);
+  await page.evaluate(function () {
+    var meta = document.createElement("meta");
+    meta.name = "chessmate-rich-links";
+    document.head.appendChild(meta);
+  });
+  await page.click("#newGameBtn");
+  await tapMove(page, "e2", "e4");
+  var richLink = (await page.textContent("#linkPeek")).trim();
+  assert.ok(richLink.indexOf("?g=v%3D1%26m%3De2e4") !== -1, "rich link uses ?g= form: " + richLink);
+  ok("rich-links flag switches staged links to the query form");
+
   // Corrupt and tampered links are refused.
   await page.goto(served.base + "#v=1&m=e2e4,e2e4");
   assert.ok(await page.isVisible("#corrupt"), "tampered link refused");
